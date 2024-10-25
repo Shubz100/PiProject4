@@ -106,28 +106,25 @@ export default function PaymentMethods() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(
-          isSaved ? 
-          { disconnect: true } :
-          {
-            paymentMethod: selectedMethod,
-            paymentAddress: paymentAddress
-          }
-        ),
+        body: JSON.stringify({
+          paymentMethod: isSaved ? null : selectedMethod,
+          paymentAddress: isSaved ? null : paymentAddress
+        }),
       })
 
       if (response.ok) {
         if (isSaved) {
+          // Disconnecting
           setIsSaved(false)
           setButtonText('Connect Payment Address')
           setContinueButtonText('Continue')
-          setPaymentAddress('')
-          setSelectedMethod(null)
-          setOpenInputId(null)
           paymentMethods.forEach(method => {
             method.isConnected = false
           })
+          setPaymentAddress('')
+          setIsAddressValid(false)
         } else {
+          // Connecting
           setIsSaved(true)
           setButtonText('Disconnect Payment Address')
           setContinueButtonText('Next Step')
