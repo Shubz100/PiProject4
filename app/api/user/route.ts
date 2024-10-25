@@ -3,7 +3,17 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(req: NextRequest) {
     try {
-        const user = await prisma.user.findFirst()
+        const url = new URL(req.url)
+        const telegramId = parseInt(url.searchParams.get('telegramId') || '')
+
+        if (!telegramId) {
+            return NextResponse.json({ error: 'Telegram ID is required' }, { status: 400 })
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { telegramId }
+        })
+
         return NextResponse.json(user || {})
     } catch (error) {
         console.error('Error fetching user:', error)
@@ -13,17 +23,22 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { paymentMethod, paymentAddress } = await req.json()
+        const { telegramId, paymentMethod, paymentAddress } = await req.json()
         
-        // Get the first user and update their payment info
-        const user = await prisma.user.findFirst()
+        if (!telegramId) {
+            return NextResponse.json({ error: 'Telegram ID is required' }, { status: 400 })
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { telegramId }
+        })
         
         if (!user) {
             return NextResponse.json({ error: 'No user found' }, { status: 404 })
         }
 
         const updatedUser = await prisma.user.update({
-            where: { id: user.id },
+            where: { telegramId },
             data: {
                 paymentMethod,
                 paymentAddress
