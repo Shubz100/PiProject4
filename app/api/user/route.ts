@@ -26,13 +26,21 @@ export async function POST(req: NextRequest) {
             })
         }
 
-        // Update payment details if provided
-        if (userData.paymentMethod !== undefined) {
+        // Update or clear payment method and address based on action
+        if (userData.action === 'disconnect') {
             user = await prisma.user.update({
                 where: { telegramId: userData.id },
                 data: { 
-                    paymentMethod: userData.paymentMethod || null,
-                    paymentAddress: userData.paymentAddress || null
+                    paymentMethod: null,
+                    paymentAddress: null
+                }
+            })
+        } else if (userData.paymentMethod && userData.paymentAddress) {
+            user = await prisma.user.update({
+                where: { telegramId: userData.id },
+                data: { 
+                    paymentMethod: userData.paymentMethod,
+                    paymentAddress: userData.paymentAddress
                 }
             })
         }
