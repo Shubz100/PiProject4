@@ -41,10 +41,21 @@
   background-color: rgb(243, 244, 246);
   border-radius: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-.methodCard:hover {
+.methodCard:hover:not(.disabledMethod) {
+  background-color: rgb(229, 231, 235);
+}
+
+.activeMethod {
+  background-color: rgba(34, 197, 94, 0.1) !important;
+  border: 1px solid rgb(34, 197, 94);
+}
+
+.disabledMethod {
+  opacity: 0.5;
+  cursor: not-allowed;
   background-color: rgb(229, 231, 235);
 }
 
@@ -72,11 +83,11 @@
 }
 
 .connected {
-  color: rgb(34, 197, 94); /* Green color for connected status */
+  color: rgb(34, 197, 94);
 }
 
 .notConnected {
-  color: #F4364C; /* Red color for not connected status */
+  color: #F4364C;
 }
 
 .inputContainer {
@@ -96,8 +107,13 @@
   transition: border-color 0.2s ease;
 }
 
-.addressInput:focus {
+.addressInput:focus:not(:disabled) {
   border-color: rgb(124, 58, 237);
+}
+
+.addressInput:disabled {
+  background-color: rgb(243, 244, 246);
+  cursor: not-allowed;
 }
 
 .connectButton {
@@ -107,20 +123,19 @@
 .connectButton button {
   width: 100%;
   padding: 1rem;
-  background-color: rgb(243, 232, 255);
-  color: rgb(124, 58, 237);
+  background-color: rgb(124, 58, 237);
+  color: white;
   border-radius: 0.5rem;
   font-weight: 500;
   transition: all 0.2s ease;
 }
 
 .connectButton button:not(:disabled):hover {
-  background-color: rgb(233, 216, 253);
+  background-color: rgb(109, 40, 217);
 }
 
 .connectButton button:disabled {
-  background-color: rgb(243, 244, 246);
-  color: rgb(156, 163, 175);
+  background-color: rgb(156, 163, 175);
   cursor: not-allowed;
 }
 
