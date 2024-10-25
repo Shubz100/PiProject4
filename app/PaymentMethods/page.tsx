@@ -102,13 +102,17 @@ export default function PaymentMethods() {
     setIsConnecting(true)
     try {
       const telegramId = localStorage.getItem('telegramId')
-      const response = await fetch('/api/user', {
+      if (!telegramId) {
+        console.error('No telegram ID found')
+        return
+      }
+
+      const response = await fetch(`/api/user?telegramId=${telegramId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          telegramId,
           paymentMethod: selectedMethod,
           paymentAddress: paymentAddress
         }),
@@ -119,7 +123,7 @@ export default function PaymentMethods() {
         setButtonText('Next Step')
         setConnectedMethod(selectedMethod)
         setConnectButtonText('Disconnect Payment Address')
-        setOpenInputId(null) // Close all dropdowns
+        setOpenInputId(null)
       }
     } catch (error) {
       console.error('Error saving payment method:', error)
@@ -131,13 +135,17 @@ export default function PaymentMethods() {
   const handleDisconnect = async () => {
     try {
       const telegramId = localStorage.getItem('telegramId')
-      const response = await fetch('/api/user', {
+      if (!telegramId) {
+        console.error('No telegram ID found')
+        return
+      }
+
+      const response = await fetch(`/api/user?telegramId=${telegramId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          telegramId,
           paymentMethod: null,
           paymentAddress: null
         }),
