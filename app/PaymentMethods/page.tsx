@@ -21,8 +21,8 @@ export default function PaymentMethods() {
   const [paymentAddress, setPaymentAddress] = useState('')
   const [isAddressValid, setIsAddressValid] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
-  const [buttonText, setButtonText] = useState('Connect Payment Address')
-  const [continueButtonText, setContinueButtonText] = useState('Continue')
+  const [buttonText, setButtonText] = useState('Continue')
+  const [isConnected, setIsConnected] = useState(false)
 
   const paymentMethods: PaymentMethod[] = [
     {
@@ -65,15 +65,15 @@ export default function PaymentMethods() {
         const response = await fetch('/api/user')
         const userData = await response.json()
         
-        if (userData.paymentMethod) {
+        if (userData.paymentMethod && userData.paymentAddress) {
           setIsSaved(true)
-          setContinueButtonText('Next Step')
-          setButtonText('Disconnect Payment Address')
+          setButtonText('Next Step')
+          setIsConnected(true)
           const methodIndex = paymentMethods.findIndex(m => m.id === userData.paymentMethod)
           if (methodIndex !== -1) {
             paymentMethods[methodIndex].isConnected = true
             setSelectedMethod(userData.paymentMethod)
-            setPaymentAddress(userData.paymentAddress || '')
+            setPaymentAddress(userData.paymentAddress)
             setOpenInputId(userData.paymentMethod)
           }
         }
@@ -86,10 +86,8 @@ export default function PaymentMethods() {
   }, [])
 
   const toggleInput = (id: string) => {
-    if (!isSaved || (isSaved && selectedMethod === id)) {
-      setOpenInputId(openInputId === id ? null : id)
-      setSelectedMethod(id)
-    }
+    setOpenInputId(openInputId === id ? null : id)
+    setSelectedMethod(id)
   }
 
   const handleAddressChange = (address: string) => {
@@ -98,7 +96,7 @@ export default function PaymentMethods() {
   }
 
   const handleConnect = async () => {
-    if (!selectedMethod || (!isAddressValid && !isSaved)) return
+    if (!selectedMethod || (!isAddressValid && !isConnected)) return
 
     try {
       const response = await fetch('/api/user', {
@@ -107,27 +105,28 @@ export default function PaymentMethods() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          paymentMethod: isSaved ? null : selectedMethod,
-          paymentAddress: isSaved ? null : paymentAddress
+          paymentMethod: selectedMethod,
+          paymentAddress: paymentAddress,
+          action: isConnected ? 'disconnect' : 'connect'
         }),
       })
 
       if (response.ok) {
-        if (isSaved) {
-          // Disconnecting
+        if (isConnected) {
+          // Disconnect logic
           setIsSaved(false)
-          setButtonText('Connect Payment Address')
-          setContinueButtonText('Continue')
+          setIsConnected(false)
+          setPaymentAddress('')
+          setSelectedMethod(null)
+          setOpenInputId(null)
           paymentMethods.forEach(method => {
             method.isConnected = false
           })
-          setPaymentAddress('')
-          setIsAddressValid(false)
         } else {
-          // Connecting
+          // Connect logic
           setIsSaved(true)
-          setButtonText('Disconnect Payment Address')
-          setContinueButtonText('Next Step')
+          setButtonText('Next Step')
+          setIsConnected(true)
           paymentMethods.forEach(method => {
             method.isConnected = method.id === selectedMethod
           })
@@ -156,9 +155,7 @@ export default function PaymentMethods() {
           {paymentMethods.map((method) => (
             <div key={method.id}>
               <div 
-                className={`${styles.methodCard} 
-                  ${method.isConnected ? styles.activeMethod : ''} 
-                  ${isSaved && !method.isConnected ? styles.disabledMethod : ''}`}
+                className={`${styles.methodCard} ${method.isConnected ? styles.activeMethod : ''}`}
                 onClick={() => toggleInput(method.id)}
               >
                 <div className={styles.methodInfo}>
@@ -184,7 +181,7 @@ export default function PaymentMethods() {
                     className={styles.addressInput}
                     onChange={(e) => handleAddressChange(e.target.value)}
                     value={paymentAddress}
-                    disabled={isSaved}
+                    disabled={isConnected}
                   />
                 </div>
               )}
@@ -195,10 +192,10 @@ export default function PaymentMethods() {
         <div className={styles.connectButton}>
           <button 
             onClick={handleConnect}
-            disabled={!selectedMethod || (!isAddressValid && !isSaved)}
-            className={(!selectedMethod || (!isAddressValid && !isSaved)) ? styles.disabled : ''}
+            disabled={!selectedMethod || (!isAddressValid && !isConnected)}
+            className={(!selectedMethod || (!isAddressValid && !isConnected)) ? styles.disabled : ''}
           >
-            {buttonText}
+            {isConnected ? 'Disconnect Payment Method' : 'Connect Payment Address'}
           </button>
         </div>
       </div>
@@ -210,7 +207,7 @@ export default function PaymentMethods() {
           onClick={handleContinue}
           disabled={!isSaved}
         >
-          {continueButtonText}
+          {buttonText}
         </button>
       </div>
     </div>
