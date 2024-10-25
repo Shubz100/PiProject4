@@ -41,21 +41,27 @@
   background-color: rgb(243, 244, 246);
   border-radius: 0.5rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 }
 
-.methodCard.disabled {
+.methodCard:hover {
+  background-color: rgb(229, 231, 235);
+}
+
+.methodCard.connectedCard {
+  background-color: rgb(220, 252, 231);
+  border: 1px solid rgb(34, 197, 94);
+}
+
+.methodCard.disabledCard {
   background-color: rgb(229, 231, 235);
   cursor: not-allowed;
   opacity: 0.7;
 }
 
-.methodCard.connected {
-  background-color: rgb(140, 255, 180);
-}
-
-.methodCard:not(.disabled):hover {
-  background-color: rgb(229, 231, 235);
+.methodCard.disabledCard .methodName,
+.methodCard.disabledCard .connectedStatus {
+  color: rgb(107, 114, 128);
 }
 
 .methodInfo {
@@ -83,10 +89,12 @@
 
 .connected {
   color: rgb(34, 197, 94);
+  animation: fadeIn 0.3s ease;
 }
 
 .notConnected {
   color: #F4364C;
+  animation: fadeIn 0.3s ease;
 }
 
 .inputContainer {
@@ -94,6 +102,7 @@
   background-color: rgb(243, 244, 246);
   border-radius: 0.5rem;
   margin-top: 0.5rem;
+  animation: slideDown 0.3s ease;
 }
 
 .addressInput {
@@ -124,17 +133,8 @@
   transition: all 0.2s ease;
 }
 
-.disconnectButton button {
-  background-color: rgb(254, 226, 226);
-  color: rgb(220, 38, 38);
-}
-
 .connectButton button:not(:disabled):hover {
   background-color: rgb(233, 216, 253);
-}
-
-.disconnectButton button:not(:disabled):hover {
-  background-color: rgb(254, 202, 202);
 }
 
 .connectButton button:disabled {
@@ -143,7 +143,14 @@
   cursor: not-allowed;
 }
 
-/* Rest of the existing CSS remains the same */
+.connectButton button.disconnectButton {
+  background-color: rgb(254, 226, 226);
+  color: rgb(239, 68, 68);
+}
+
+.connectButton button.disconnectButton:hover {
+  background-color: rgb(254, 202, 202);
+}
 
 .footer {
   display: flex;
@@ -184,7 +191,6 @@
   cursor: not-allowed;
 }
 
-/* Animation for status changes */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -194,7 +200,13 @@
   }
 }
 
-.connected,
-.notConnected {
-  animation: fadeIn 0.3s ease;
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
