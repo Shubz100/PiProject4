@@ -23,7 +23,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { telegramId, paymentMethod, paymentAddress } = await req.json()
+        const { paymentMethod, paymentAddress } = await req.json()
+        const url = new URL(req.url)
+        const telegramId = parseInt(url.searchParams.get('telegramId') || '')
         
         if (!telegramId) {
             return NextResponse.json({ error: 'Telegram ID is required' }, { status: 400 })
