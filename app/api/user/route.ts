@@ -26,23 +26,13 @@ export async function POST(req: NextRequest) {
             })
         }
 
-        // Handle disconnect request
-        if (userData.disconnect) {
+        // Update payment details if provided
+        if (userData.paymentMethod !== undefined) {
             user = await prisma.user.update({
                 where: { telegramId: userData.id },
                 data: { 
-                    paymentMethod: null,
-                    paymentAddress: null
-                }
-            })
-        }
-        // Handle connect request
-        else if (userData.paymentMethod && userData.paymentAddress) {
-            user = await prisma.user.update({
-                where: { telegramId: userData.id },
-                data: { 
-                    paymentMethod: userData.paymentMethod,
-                    paymentAddress: userData.paymentAddress
+                    paymentMethod: userData.paymentMethod || null,
+                    paymentAddress: userData.paymentAddress || null
                 }
             })
         }
