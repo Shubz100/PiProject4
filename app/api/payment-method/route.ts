@@ -3,17 +3,17 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(req: NextRequest) {
     try {
-        const { telegramId, paymentMethod } = await req.json()
+        const { telegramId, paymentMethod, paymentAddress } = await req.json()
 
         if (!telegramId) {
             return NextResponse.json({ error: 'Invalid telegramId' }, { status: 400 })
         }
 
         const updatedUser = await prisma.user.update({
-            where: { telegramId },
+            where: { telegramId: parseInt(telegramId) },
             data: {
                 paymentMethod: paymentMethod,
-                paymentAddress: paymentMethod ? undefined : null // Clear address when method is cleared
+                paymentAddress: paymentMethod ? paymentAddress : null // Clear address when method is cleared
             }
         })
 
