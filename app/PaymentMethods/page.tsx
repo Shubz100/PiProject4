@@ -25,6 +25,7 @@ export default function PaymentMethods() {
   const [isConnecting, setIsConnecting] = useState(false)
   const [connectedMethod, setConnectedMethod] = useState<string | null>(null)
   const [connectButtonText, setConnectButtonText] = useState('Connect Payment Address')
+  const [userId, setUserId] = useState<number | null>(null)
 
   const paymentMethods: PaymentMethod[] = [
     {
@@ -61,37 +62,40 @@ export default function PaymentMethods() {
     }
   ]
 
+  // First, get the user's telegram ID from the API
   useEffect(() => {
-    const checkExistingPayment = async () => {
+    const fetchUser = async () => {
       try {
-        const telegramId = localStorage.getItem('telegramId')
-        if (!telegramId) return
-
-        // Use separate API endpoints for payment method and address
-        const [methodResponse, addressResponse] = await Promise.all([
-          fetch(`/api/payment-method?telegramId=${telegramId}`),
-          fetch(`/api/payment-address?telegramId=${telegramId}`)
-        ])
-        
-        const [methodData, addressData] = await Promise.all([
-          methodResponse.json(),
-          addressResponse.json()
-        ])
-        
-        if (methodData.paymentMethod) {
-          setIsSaved(true)
-          setButtonText('Next Step')
-          setConnectedMethod(methodData.paymentMethod)
-          setSelectedMethod(methodData.paymentMethod)
-          setPaymentAddress(addressData.paymentAddress || '')
-          setConnectButtonText('Disconnect Payment Address')
+        const response = await fetch('/api/user')
+        const userData = await response.json()
+        if (userData && userData.telegramId) {
+          setUserId(userData.telegramId)
+          // Check for existing payment method and address
+          const [methodResponse, addressResponse] = await Promise.all([
+            fetch(`/api/payment-method?telegramId=${userData.telegramId}`),
+            fetch(`/api/payment-address?telegramId=${userData.telegramId}`)
+          ])
+          
+          const [methodData, addressData] = await Promise.all([
+            methodResponse.json(),
+            addressResponse.json()
+          ])
+          
+          if (methodData.paymentMethod) {
+            setIsSaved(true)
+            setButtonText('Next Step')
+            setConnectedMethod(methodData.paymentMethod)
+            setSelectedMethod(methodData.paymentMethod)
+            setPaymentAddress(addressData.paymentAddress || '')
+            setConnectButtonText('Disconnect Payment Address')
+          }
         }
       } catch (error) {
-        console.error('Error checking payment status:', error)
+        console.error('Error fetching user data:', error)
       }
     }
 
-    checkExistingPayment()
+    fetchUser()
   }, [])
 
   const handleAddressChange = (address: string) => {
@@ -105,39 +109,33 @@ export default function PaymentMethods() {
       return
     }
 
-    if (!selectedMethod || !isAddressValid) return
+    if (!selectedMethod || !isAddressValid || !userId) return
 
     setIsConnecting(true)
     try {
-      const telegramId = localStorage.getItem('telegramId')
-      if (!telegramId) {
-        console.error('No telegram ID found')
-        return
-      }
-
-      // Update payment method first
+      // Update payment method
       const methodResponse = await fetch('/api/payment-method', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          telegramId,
+          telegramId: userId,
           paymentMethod: selectedMethod
         }),
       })
 
       if (!methodResponse.ok) throw new Error('Failed to update payment method')
 
-      // Then update payment address
+      // Update payment address
       const addressResponse = await fetch('/api/payment-address', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          telegramId,
-          paymentAddress
+          telegramId: userId,
+          paymentAddress: paymentAddress
         }),
       })
 
@@ -156,21 +154,17 @@ export default function PaymentMethods() {
   }
 
   const handleDisconnect = async () => {
-    try {
-      const telegramId = localStorage.getItem('telegramId')
-      if (!telegramId) {
-        console.error('No telegram ID found')
-        return
-      }
+    if (!userId) return
 
-      // Clear payment method (this will also clear the address in the API)
+    try {
+      // Clear payment method and address
       const response = await fetch('/api/payment-method', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          telegramId,
+          telegramId: userId,
           paymentMethod: null
         }),
       })
@@ -190,7 +184,7 @@ export default function PaymentMethods() {
   }
 
   const toggleInput = (id: string) => {
-    if (isConnecting || connectedMethod) return // Prevent toggling if connecting or already connected
+    if (isConnecting || connectedMethod) return
     setOpenInputId(openInputId === id ? null : id)
     setSelectedMethod(id)
   }
@@ -203,6 +197,7 @@ export default function PaymentMethods() {
 
   return (
     <div className={styles.container}>
+      {/* Rest of the JSX remains the same */}
       <div className={styles.content}>
         <div className={styles.header}>
           <i className="fas fa-arrow-left"></i>
