@@ -71,7 +71,6 @@ export default function PaymentMethods() {
 
   const checkExistingPayment = async () => {
     try {
-      // Get telegramId from wherever you store it (localStorage, context, etc)
       const telegramId = Number(localStorage.getItem('telegramId'))
       
       if (!telegramId) return
@@ -85,8 +84,8 @@ export default function PaymentMethods() {
         setConnectButtonText('Disconnect Payment Address')
         setSelectedMethod(data.user.paymentMethod)
         setPaymentAddress(data.user.paymentAddress || '')
+        setIsAddressValid(true)
 
-        // Update payment methods state
         setPaymentMethods(prevMethods => 
           prevMethods.map(method => ({
             ...method,
@@ -102,13 +101,24 @@ export default function PaymentMethods() {
 
   const toggleInput = (id: string) => {
     if (isConnecting || paymentMethods.find(m => m.id === id)?.isDisabled) return
-    setOpenInputId(openInputId === id ? null : id)
-    setSelectedMethod(id)
+    
+    if (openInputId === id) {
+      setOpenInputId(null)
+      setSelectedMethod(null)
+      setIsAddressValid(false)
+      setPaymentAddress('')
+    } else {
+      setOpenInputId(id)
+      setSelectedMethod(id)
+      setPaymentAddress('')
+      setIsAddressValid(false)
+    }
   }
 
   const handleAddressChange = (address: string) => {
-    setPaymentAddress(address)
-    setIsAddressValid(address.trim().length > 0)
+    const trimmedAddress = address.trim()
+    setPaymentAddress(trimmedAddress)
+    setIsAddressValid(trimmedAddress.length > 0)
   }
 
   const handleConnect = async () => {
@@ -121,6 +131,8 @@ export default function PaymentMethods() {
         console.error('No telegramId found')
         return
       }
+
+      setIsConnecting(true)
 
       if (isSaved) {
         // Disconnect
@@ -139,8 +151,8 @@ export default function PaymentMethods() {
           setPaymentAddress('')
           setSelectedMethod(null)
           setOpenInputId(null)
+          setIsAddressValid(false)
           
-          // Reset all payment methods
           setPaymentMethods(prevMethods => 
             prevMethods.map(method => ({
               ...method,
@@ -151,7 +163,6 @@ export default function PaymentMethods() {
         }
       } else {
         // Connect
-        setIsConnecting(true)
         const response = await fetch('/api/user/payment', {
           method: 'POST',
           headers: {
@@ -169,7 +180,6 @@ export default function PaymentMethods() {
           setConnectButtonText('Disconnect Payment Address')
           setButtonText('Next Step')
           
-          // Update payment methods
           setPaymentMethods(prevMethods => 
             prevMethods.map(method => ({
               ...method,
@@ -177,6 +187,8 @@ export default function PaymentMethods() {
               isDisabled: method.id !== selectedMethod
             }))
           )
+        } else {
+          throw new Error('Failed to connect payment method')
         }
       }
     } catch (error) {
@@ -220,46 +232,40 @@ export default function PaymentMethods() {
                   <span className={styles.methodName}>{method.displayText}</span>
                 </div>
                 <span className={`${styles.connectedStatus} ${method.isConnected ? styles.connected : styles.notConnected}`}>
-                  {method.isConnected ? 'Connected' : 'Not Connected'}
+                  {method.isConnected ? 'Connected' :  'Not Connected'}
                 </span>
               </div>
-              
-              {openInputId === method.id && !isConnecting && (
+              {openInputId === method.id && (
                 <div className={styles.inputContainer}>
                   <input 
                     type="text" 
-                    placeholder={method.placeholder}
-                    className={styles.addressInput}
-                    onChange={(e) => handleAddressChange(e.target.value)}
-                    value={paymentAddress}
+                    value={paymentAddress} 
+                    onChange={(e) => handleAddressChange(e.target.value)} 
+                    placeholder={method.placeholder} 
+                    className={styles.inputField}
                   />
                 </div>
               )}
             </div>
           ))}
         </div>
-
+        
         <div className={styles.connectButton}>
           <button 
-            onClick={handleConnect}
-            disabled={(!selectedMethod || !isAddressValid) && !isSaved}
-            className={(!selectedMethod || !isAddressValid) && !isSaved ? styles.disabled : ''}
+            onClick={handleConnect} 
+            disabled={isConnecting || (!isAddressValid && !isSaved)} 
+            className={(!isAddressValid && !isSaved) ? styles.disabled : ''}
           >
-            {connectButtonText}
+            {isConnecting ? 'Connecting...' : connectButtonText}
           </button>
         </div>
-      </div>
-
-      <div className={styles.footer}>
-        <button className={styles.cancelButton}>Cancel</button>
-        <button 
-          className={`${styles.continueButton} ${!isSaved ? styles.disabled : ''}`}
-          onClick={handleContinue}
-          disabled={!isSaved}
-        >
-          {buttonText}
-        </button>
+        
+        <div className={styles.continueButton}>
+          <button onClick={handleContinue}>{buttonText}</button>
+        </div>
       </div>
     </div>
   )
 }
+
+export default PaymentMethods
