@@ -12,6 +12,7 @@ interface PaymentMethod {
   displayText: string
   isConnected: boolean
   placeholder: string
+  isDisabled: boolean
 }
 
 export default function PaymentMethods() {
@@ -22,17 +23,17 @@ export default function PaymentMethods() {
   const [isAddressValid, setIsAddressValid] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
   const [buttonText, setButtonText] = useState('Continue')
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [connectedMethod, setConnectedMethod] = useState<string | null>(null)
   const [connectButtonText, setConnectButtonText] = useState('Connect Payment Address')
+  const [isConnecting, setIsConnecting] = useState(false)
 
-  const paymentMethods: PaymentMethod[] = [
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
     {
       id: 'binance',
       name: 'Binance',
       image: 'https://i.imgur.com/iM5K2ey.jpg',
       displayText: 'Binance',
       isConnected: false,
+      isDisabled: false,
       placeholder: 'Enter Binance address'
     },
     {
@@ -41,6 +42,7 @@ export default function PaymentMethods() {
       image: 'https://i.imgur.com/jfjFkeA.jpg',
       displayText: 'KuCoin',
       isConnected: false,
+      isDisabled: false,
       placeholder: 'Enter KuCoin address'
     },
     {
@@ -49,6 +51,7 @@ export default function PaymentMethods() {
       image: 'https://i.imgur.com/fZI0OD2.jpg',
       displayText: 'Trust Wallet',
       isConnected: false,
+      isDisabled: false,
       placeholder: 'Enter Trust Wallet address'
     },
     {
@@ -57,34 +60,51 @@ export default function PaymentMethods() {
       image: 'https://i.imgur.com/FK31xFx.jpg',
       displayText: 'UPI',
       isConnected: false,
+      isDisabled: false,
       placeholder: 'Enter UPI address'
     }
-  ]
+  ])
 
   useEffect(() => {
-    const checkExistingPayment = async () => {
-      try {
-        const telegramId = localStorage.getItem('telegramId')
-        if (!telegramId) return
-
-        const response = await fetch(`/api/user?telegramId=${telegramId}`)
-        const userData = await response.json()
-        
-        if (userData.paymentMethod) {
-          setIsSaved(true)
-          setButtonText('Next Step')
-          setConnectedMethod(userData.paymentMethod)
-          setSelectedMethod(userData.paymentMethod)
-          setPaymentAddress(userData.paymentAddress || '')
-          setConnectButtonText('Disconnect Payment Address')
-        }
-      } catch (error) {
-        console.error('Error checking payment status:', error)
-      }
-    }
-
     checkExistingPayment()
   }, [])
+
+  const checkExistingPayment = async () => {
+    try {
+      // Get telegramId from wherever you store it (localStorage, context, etc)
+      const telegramId = Number(localStorage.getItem('telegramId'))
+      
+      if (!telegramId) return
+
+      const response = await fetch(`/api/user/payment?telegramId=${telegramId}`)
+      const data = await response.json()
+
+      if (data.user?.paymentMethod) {
+        setIsSaved(true)
+        setButtonText('Next Step')
+        setConnectButtonText('Disconnect Payment Address')
+        setSelectedMethod(data.user.paymentMethod)
+        setPaymentAddress(data.user.paymentAddress || '')
+
+        // Update payment methods state
+        setPaymentMethods(prevMethods => 
+          prevMethods.map(method => ({
+            ...method,
+            isConnected: method.id === data.user.paymentMethod,
+            isDisabled: method.id !== data.user.paymentMethod
+          }))
+        )
+      }
+    } catch (error) {
+      console.error('Error checking payment status:', error)
+    }
+  }
+
+  const toggleInput = (id: string) => {
+    if (isConnecting || paymentMethods.find(m => m.id === id)?.isDisabled) return
+    setOpenInputId(openInputId === id ? null : id)
+    setSelectedMethod(id)
+  }
 
   const handleAddressChange = (address: string) => {
     setPaymentAddress(address)
@@ -92,75 +112,78 @@ export default function PaymentMethods() {
   }
 
   const handleConnect = async () => {
-    if (connectButtonText === 'Disconnect Payment Address') {
-      await handleDisconnect()
-      return
-    }
+    if (!selectedMethod || (!isAddressValid && !isSaved)) return
 
-    if (!selectedMethod || !isAddressValid) return
-
-    setIsConnecting(true)
     try {
-      const telegramId = localStorage.getItem('telegramId')
-      const response = await fetch('/api/user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          telegramId,
-          paymentMethod: selectedMethod,
-          paymentAddress: paymentAddress
-        }),
-      })
+      const telegramId = Number(localStorage.getItem('telegramId'))
+      
+      if (!telegramId) {
+        console.error('No telegramId found')
+        return
+      }
 
-      if (response.ok) {
-        setIsSaved(true)
-        setButtonText('Next Step')
-        setConnectedMethod(selectedMethod)
-        setConnectButtonText('Disconnect Payment Address')
-        setOpenInputId(null) // Close all dropdowns
+      if (isSaved) {
+        // Disconnect
+        const response = await fetch('/api/user/payment', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ telegramId })
+        })
+
+        if (response.ok) {
+          setIsSaved(false)
+          setConnectButtonText('Connect Payment Address')
+          setButtonText('Continue')
+          setPaymentAddress('')
+          setSelectedMethod(null)
+          setOpenInputId(null)
+          
+          // Reset all payment methods
+          setPaymentMethods(prevMethods => 
+            prevMethods.map(method => ({
+              ...method,
+              isConnected: false,
+              isDisabled: false
+            }))
+          )
+        }
+      } else {
+        // Connect
+        setIsConnecting(true)
+        const response = await fetch('/api/user/payment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            telegramId,
+            paymentMethod: selectedMethod,
+            paymentAddress: paymentAddress
+          }),
+        })
+
+        if (response.ok) {
+          setIsSaved(true)
+          setConnectButtonText('Disconnect Payment Address')
+          setButtonText('Next Step')
+          
+          // Update payment methods
+          setPaymentMethods(prevMethods => 
+            prevMethods.map(method => ({
+              ...method,
+              isConnected: method.id === selectedMethod,
+              isDisabled: method.id !== selectedMethod
+            }))
+          )
+        }
       }
     } catch (error) {
-      console.error('Error saving payment method:', error)
+      console.error('Error handling payment connection:', error)
     } finally {
       setIsConnecting(false)
     }
-  }
-
-  const handleDisconnect = async () => {
-    try {
-      const telegramId = localStorage.getItem('telegramId')
-      const response = await fetch('/api/user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          telegramId,
-          paymentMethod: null,
-          paymentAddress: null
-        }),
-      })
-
-      if (response.ok) {
-        setIsSaved(false)
-        setButtonText('Continue')
-        setConnectedMethod(null)
-        setSelectedMethod(null)
-        setPaymentAddress('')
-        setConnectButtonText('Connect Payment Address')
-        setOpenInputId(null)
-      }
-    } catch (error) {
-      console.error('Error disconnecting payment method:', error)
-    }
-  }
-
-  const toggleInput = (id: string) => {
-    if (isConnecting || connectedMethod) return // Prevent toggling if connecting or already connected
-    setOpenInputId(openInputId === id ? null : id)
-    setSelectedMethod(id)
   }
 
   const handleContinue = () => {
@@ -178,55 +201,49 @@ export default function PaymentMethods() {
         </div>
         
         <div className={styles.methodsList}>
-          {paymentMethods.map((method) => {
-            const isMethodConnected = method.id === connectedMethod
-            const isDisabled = connectedMethod && !isMethodConnected
-
-            return (
-              <div key={method.id}>
-                <div 
-                  className={`${styles.methodCard} 
-                    ${isMethodConnected ? styles.connectedCard : ''} 
-                    ${isDisabled ? styles.disabledCard : ''}`}
-                  onClick={() => !isDisabled && toggleInput(method.id)}
-                >
-                  <div className={styles.methodInfo}>
-                    <Image
-                      src={method.image}
-                      alt={`${method.name} logo`}
-                      width={40}
-                      height={40}
-                      className={styles.methodLogo}
-                    />
-                    <span className={styles.methodName}>{method.displayText}</span>
-                  </div>
-                  <span className={`${styles.connectedStatus} 
-                    ${isMethodConnected ? styles.connected : styles.notConnected}`}>
-                    {isMethodConnected ? 'Connected' : 'Not Connected'}
-                  </span>
+          {paymentMethods.map((method) => (
+            <div key={method.id}>
+              <div 
+                className={`${styles.methodCard} 
+                  ${method.isConnected ? styles.connected : ''} 
+                  ${method.isDisabled ? styles.disabled : ''}`}
+                onClick={() => toggleInput(method.id)}
+              >
+                <div className={styles.methodInfo}>
+                  <Image
+                    src={method.image}
+                    alt={`${method.name} logo`}
+                    width={40}
+                    height={40}
+                    className={styles.methodLogo}
+                  />
+                  <span className={styles.methodName}>{method.displayText}</span>
                 </div>
-                
-                {openInputId === method.id && !isConnecting && (
-                  <div className={styles.inputContainer}>
-                    <input 
-                      type="text" 
-                      placeholder={method.placeholder}
-                      className={styles.addressInput}
-                      onChange={(e) => handleAddressChange(e.target.value)}
-                      value={paymentAddress}
-                    />
-                  </div>
-                )}
+                <span className={`${styles.connectedStatus} ${method.isConnected ? styles.connected : styles.notConnected}`}>
+                  {method.isConnected ? 'Connected' : 'Not Connected'}
+                </span>
               </div>
-            )
-          })}
+              
+              {openInputId === method.id && !isConnecting && (
+                <div className={styles.inputContainer}>
+                  <input 
+                    type="text" 
+                    placeholder={method.placeholder}
+                    className={styles.addressInput}
+                    onChange={(e) => handleAddressChange(e.target.value)}
+                    value={paymentAddress}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         <div className={styles.connectButton}>
           <button 
             onClick={handleConnect}
-            disabled={connectButtonText === 'Connect Payment Address' && (!selectedMethod || !isAddressValid)}
-            className={connectButtonText === 'Disconnect Payment Address' ? styles.disconnectButton : ''}
+            disabled={(!selectedMethod || !isAddressValid) && !isSaved}
+            className={(!selectedMethod || !isAddressValid) && !isSaved ? styles.disabled : ''}
           >
             {connectButtonText}
           </button>
