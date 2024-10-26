@@ -204,11 +204,15 @@ export default function PaymentMethods() {
     }
   }
 
+  const handleBack = () => {
+    router.back()
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
         <div className={styles.header}>
-          <i className="fas fa-arrow-left"></i>
+          <i className="fas fa-arrow-left" onClick={handleBack}></i>
           <h1>Payment Methods</h1>
         </div>
         
@@ -231,8 +235,8 @@ export default function PaymentMethods() {
                   />
                   <span className={styles.methodName}>{method.displayText}</span>
                 </div>
-                <span className={`${styles.connectedStatus} ${method.isConnected ? styles.connected : styles.notConnected}`}>
-                  {method.isConnected ? 'Connected' :  'Not Connected'}
+                <span className={`${styles.connectedStatus} ${method.isConnected ? styles.connected : styles.notConn eced}`}>
+                  {method.isConnected ? 'Connected' : 'Not Connected'}
                 </span>
               </div>
               {openInputId === method.id && (
@@ -242,30 +246,22 @@ export default function PaymentMethods() {
                     value={paymentAddress} 
                     onChange={(e) => handleAddressChange(e.target.value)} 
                     placeholder={method.placeholder} 
-                    className={styles.inputField}
                   />
+                  <button onClick={handleConnect}>
+                    {connectButtonText}
+                  </button>
                 </div>
               )}
             </div>
           ))}
         </div>
         
-        <div className={styles.connectButton}>
-          <button 
-            onClick={handleConnect} 
-            disabled={isConnecting || (!isAddressValid && !isSaved)} 
-            className={(!isAddressValid && !isSaved) ? styles.disabled : ''}
-          >
-            {isConnecting ? 'Connecting...' : connectButtonText}
+        <div className={styles.footer}>
+          <button onClick={handleContinue}>
+            {buttonText}
           </button>
-        </div>
-        
-        <div className={styles.continueButton}>
-          <button onClick={handleContinue}>{buttonText}</button>
         </div>
       </div>
     </div>
   )
 }
-
-export default PaymentMethods
