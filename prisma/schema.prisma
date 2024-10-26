@@ -8,15 +8,14 @@ generator client {
 }
 
 model User {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  telegramId    Int     @unique
-  username      String?
-  firstName     String?
-  lastName      String?
-  points        Int     @default(0)
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  telegramId Int     @unique
+  username   String?
+  firstName  String?
+  lastName   String?
+  points     Int     @default(0)
   paymentMethod String?
-  paymentAddress String?
-  introSeen     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  introSeen   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
