@@ -1,0 +1,106 @@
+<html>
+<head>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+  <style>
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-white h-screen flex flex-col justify-between">
+  <div class="p-4">
+    <div class="flex items-center mb-4">
+      <i class="fas fa-arrow-left text-xl"></i>
+      <h1 class="text-xl font-semibold ml-4">Payment Methods</h1>
+    </div>
+    <div class="space-y-4">
+      <div id="paypal-box" class="flex items-center justify-between p-4 bg-gray-100 rounded-lg cursor-pointer">
+        <div class="flex items-center">
+          <img alt="PayPal logo" class="w-10 h-10" height="40" src="https://storage.googleapis.com/a1aa/image/LM00lHy4e4VEfEwshfXBUMcJYM0B328inIsGRj7TYfhafrHdC.jpg" width="40"/>
+          <span class="ml-4 text-lg">PayPal</span>
+        </div>
+        <span class="text-purple-600">Connected</span>
+      </div>
+      <div id="paypal-input" class="hidden p-4 bg-gray-100 rounded-lg">
+        <input type="text" placeholder="Enter PayPal address" class="w-full p-2 border border-gray-300 rounded-lg"/>
+      </div>
+
+      <div id="googlepay-box" class="flex items-center justify-between p-4 bg-gray-100 rounded-lg cursor-pointer">
+        <div class="flex items-center">
+          <img alt="Google Pay logo" class="w-10 h-10" height="40" src="https://storage.googleapis.com/a1aa/image/SvKY98RDkvYhENmLE9Ukt5u94yGsWNixkJM5U691UbdeveoTA.jpg" width="40"/>
+          <span class="ml-4 text-lg">Google Pay</span>
+        </div>
+        <span class="text-purple-600">Connected</span>
+      </div>
+      <div id="googlepay-input" class="hidden p-4 bg-gray-100 rounded-lg">
+        <input type="text" placeholder="Enter Google Pay address" class="w-full p-2 border border-gray-300 rounded-lg"/>
+      </div>
+
+      <div id="applepay-box" class="flex items-center justify-between p-4 bg-gray-100 rounded-lg cursor-pointer">
+        <div class="flex items-center">
+          <img alt="Apple Pay logo" class="w-10 h-10" height="40" src="https://storage.googleapis.com/a1aa/image/YqpCh7xg0Ab9N17SKmdPm6cBYfCqsSwebOnsx553IeS1f1jOB.jpg" width="40"/>
+          <span class="ml-4 text-lg">Apple Pay</span>
+        </div>
+        <span class="text-purple-600">Connected</span>
+      </div>
+      <div id="applepay-input" class="hidden p-4 bg-gray-100 rounded-lg">
+        <input type="text" placeholder="Enter Apple Pay address" class="w-full p-2 border border-gray-300 rounded-lg"/>
+      </div>
+
+      <div id="mastercard-box" class="flex items-center justify-between p-4 bg-gray-100 rounded-lg cursor-pointer">
+        <div class="flex items-center">
+          <img alt="Mastercard logo" class="w-10 h-10" height="40" src="https://storage.googleapis.com/a1aa/image/XBvmqXf3efCHMIrLcbgQfNciUh1kUfjmogYgjIg8xeoIeveoTA.jpg" width="40"/>
+          <span class="ml-4 text-lg">•••• 2766</span>
+        </div>
+        <span class="text-purple-600">Connected</span>
+      </div>
+      <div id="mastercard-input" class="hidden p-4 bg-gray-100 rounded-lg">
+        <input type="text" placeholder="Enter Mastercard details" class="w-full p-2 border border-gray-300 rounded-lg"/>
+      </div>
+    </div>
+    <div class="mt-8">
+      <button class="w-full py-4 bg-purple-100 text-purple-600 rounded-lg">Add New Card</button>
+    </div>
+  </div>
+  <div class="flex justify-between p-4">
+    <button class="w-1/2 py-4 bg-purple-100 text-purple-600 rounded-lg mr-2">Cancel</button>
+    <button class="w-1/2 py-4 bg-purple-600 text-white rounded-lg ml-2">Continue</button>
+  </div>
+  <script>
+    function toggleBox(boxId, inputId) {
+      var boxes = ['paypal-box', 'googlepay-box', 'applepay-box', 'mastercard-box'];
+      var inputs = ['paypal-input', 'googlepay-input', 'applepay-input', 'mastercard-input'];
+      boxes.forEach(function(id, index) {
+        var box = document.getElementById(id);
+        var input = document.getElementById(inputs[index]);
+        if (id === boxId) {
+          if (input.classList.contains('hidden')) {
+            input.classList.remove('hidden');
+          } else {
+            input.classList.add('hidden');
+          }
+        } else {
+          input.classList.add('hidden');
+        }
+      });
+    }
+
+    document.getElementById('paypal-box').addEventListener('click', function() {
+      toggleBox('paypal-box', 'paypal-input');
+    });
+
+    document.getElementById('googlepay-box').addEventListener('click', function() {
+      toggleBox('googlepay-box', 'googlepay-input');
+    });
+
+    document.getElementById('applepay-box').addEventListener('click', function() {
+      toggleBox('applepay-box', 'applepay-input');
+    });
+
+    document.getElementById('mastercard-box').addEventListener('click', function() {
+      toggleBox('mastercard-box', 'mastercard-input');
+    });
+  </script>
+</body>
+</html>
