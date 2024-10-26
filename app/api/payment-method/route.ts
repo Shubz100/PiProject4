@@ -10,9 +10,11 @@ export async function POST(req: NextRequest) {
         }
 
         const updatedUser = await prisma.user.update({
-            where: { telegramId: parseInt(telegramId) },
+            where: { 
+                telegramId: Number(telegramId)  // Ensure telegramId is a number
+            },
             data: {
-                paymentMethod: paymentMethod,
+                paymentMethod,
                 // Clear payment address when payment method is cleared
                 paymentAddress: paymentMethod ? undefined : null
             }
@@ -34,11 +36,13 @@ export async function GET(req: NextRequest) {
         }
 
         const user = await prisma.user.findUnique({
-            where: { telegramId: parseInt(telegramId) },
+            where: { 
+                telegramId: Number(telegramId)  // Ensure telegramId is a number
+            },
             select: { paymentMethod: true }
         })
 
-        return NextResponse.json(user)
+        return NextResponse.json(user || { paymentMethod: null })
     } catch (error) {
         console.error('Error fetching payment method:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
