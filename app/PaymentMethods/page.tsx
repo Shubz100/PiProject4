@@ -1,3 +1,80 @@
+// prisma/schema.prisma
+// Update this file on GitHub
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  telegramId    Int       @unique
+  username      String?
+  firstName     String?
+  lastName      String?
+  points        Int       @default(0)
+  paymentMethod String?
+  paymentAddress String?  // New field added
+  introSeen     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// app/api/user/route.ts
+// Update or create this file on GitHub
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(req: NextRequest) {
+    try {
+        // Get telegramId from query params or headers
+        const telegramId = req.headers.get('telegram-id') || req.nextUrl.searchParams.get('telegramId')
+        
+        if (!telegramId) {
+            return NextResponse.json({ error: 'Telegram ID required' }, { status: 400 })
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { telegramId: parseInt(telegramId) }
+        })
+
+        return NextResponse.json(user || {})
+    } catch (error) {
+        console.error('Error fetching user:', error)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        const userData = await req.json()
+        const telegramId = userData.telegramId || userData.id
+
+        if (!telegramId) {
+            return NextResponse.json({ error: 'Telegram ID required' }, { status: 400 })
+        }
+
+        const updateData: any = {}
+        if (userData.paymentMethod) updateData.paymentMethod = userData.paymentMethod
+        if (userData.paymentAddress) updateData.paymentAddress = userData.paymentAddress
+
+        const user = await prisma.user.update({
+            where: { telegramId: parseInt(telegramId) },
+            data: updateData
+        })
+
+        return NextResponse.json(user)
+    } catch (error) {
+        console.error('Error updating user:', error)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+}
+
+// app/PaymentMethods/page.tsx
+// Update this file on GitHub
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -22,10 +99,6 @@ export default function PaymentMethods() {
   const [isAddressValid, setIsAddressValid] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
   const [buttonText, setButtonText] = useState('Continue')
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [connectedMethod, setConnectedMethod] = useState<string | null>(null)
-  const [connectButtonText, setConnectButtonText] = useState('Connect Payment Address')
-  const [telegramId, setTelegramId] = useState<number | null>(null)
 
   const paymentMethods: PaymentMethod[] = [
     {
@@ -65,24 +138,22 @@ export default function PaymentMethods() {
   useEffect(() => {
     const checkExistingPayment = async () => {
       try {
-        // Get telegramId from the database
-        const response = await fetch('/api/user')
+        // Assuming you store telegramId in localStorage or similar
+        const telegramId = localStorage.getItem('telegramId')
+        if (!telegramId) return
+
+        const response = await fetch(`/api/user?telegramId=${telegramId}`)
         const userData = await response.json()
         
-        if (userData.telegramId) {
-          setTelegramId(userData.telegramId)
-          
-          // Check existing payment method and address
-          const paymentResponse = await fetch(`/api/payment-method?telegramId=${userData.telegramId}`)
-          const paymentData = await paymentResponse.json()
-          
-          if (paymentData.paymentMethod) {
-            setIsSaved(true)
-            setButtonText('Next Step')
-            setConnectedMethod(paymentData.paymentMethod)
-            setSelectedMethod(paymentData.paymentMethod)
-            setPaymentAddress(paymentData.paymentAddress || '')
-            setConnectButtonText('Disconnect Payment Address')
+        if (userData.paymentMethod) {
+          setIsSaved(true)
+          setButtonText('Next Step')
+          // Find and mark the connected payment method
+          const method = paymentMethods.find(m => m.id === userData.paymentMethod)
+          if (method) {
+            method.isConnected = true
+            setSelectedMethod(method.id)
+            setPaymentAddress(userData.paymentAddress || '')
           }
         }
       } catch (error) {
@@ -95,21 +166,16 @@ export default function PaymentMethods() {
 
   const handleAddressChange = (address: string) => {
     setPaymentAddress(address)
+    // Add your address validation logic here
     setIsAddressValid(address.trim().length > 0)
   }
 
   const handleConnect = async () => {
-    if (connectButtonText === 'Disconnect Payment Address') {
-      await handleDisconnect()
-      return
-    }
+    if (!selectedMethod || !isAddressValid) return
 
-    if (!selectedMethod || !isAddressValid || !telegramId) return
-
-    setIsConnecting(true)
     try {
-      // Update payment method and address
-      const response = await fetch('/api/payment-method', {
+      const telegramId = localStorage.getItem('telegramId')
+      const response = await fetch('/api/user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,57 +183,23 @@ export default function PaymentMethods() {
         body: JSON.stringify({
           telegramId,
           paymentMethod: selectedMethod,
-          paymentAddress
+          paymentAddress: paymentAddress
         }),
       })
 
       if (response.ok) {
         setIsSaved(true)
         setButtonText('Next Step')
-        setConnectedMethod(selectedMethod)
-        setConnectButtonText('Disconnect Payment Address')
-        setOpenInputId(null)
+        // Update the connected status of the selected method
+        const updatedMethods = paymentMethods.map(method => ({
+          ...method,
+          isConnected: method.id === selectedMethod
+        }))
+        paymentMethods.splice(0, paymentMethods.length, ...updatedMethods)
       }
     } catch (error) {
       console.error('Error saving payment method:', error)
-    } finally {
-      setIsConnecting(false)
     }
-  }
-
-  const handleDisconnect = async () => {
-    if (!telegramId) return
-
-    try {
-      const response = await fetch('/api/payment-method', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          telegramId,
-          paymentMethod: null
-        }),
-      })
-
-      if (response.ok) {
-        setIsSaved(false)
-        setButtonText('Continue')
-        setConnectedMethod(null)
-        setSelectedMethod(null)
-        setPaymentAddress('')
-        setConnectButtonText('Connect Payment Address')
-        setOpenInputId(null)
-      }
-    } catch (error) {
-      console.error('Error disconnecting payment method:', error)
-    }
-  }
-
-  const toggleInput = (id: string) => {
-    if (isConnecting || connectedMethod) return
-    setOpenInputId(openInputId === id ? null : id)
-    setSelectedMethod(id)
   }
 
   const handleContinue = () => {
@@ -185,57 +217,49 @@ export default function PaymentMethods() {
         </div>
         
         <div className={styles.methodsList}>
-          {paymentMethods.map((method) => {
-            const isMethodConnected = method.id === connectedMethod
-            const isDisabled = connectedMethod && !isMethodConnected
-
-            return (
-              <div key={method.id}>
-                <div 
-                  className={`${styles.methodCard} 
-                    ${isMethodConnected ? styles.connectedCard : ''} 
-                    ${isDisabled ? styles.disabledCard : ''}`}
-                  onClick={() => !isDisabled && toggleInput(method.id)}
-                >
-                  <div className={styles.methodInfo}>
-                    <Image
-                      src={method.image}
-                      alt={`${method.name} logo`}
-                      width={40}
-                      height={40}
-                      className={styles.methodLogo}
-                    />
-                    <span className={styles.methodName}>{method.displayText}</span>
-                  </div>
-                  <span className={`${styles.connectedStatus} 
-                    ${isMethodConnected ? styles.connected : styles.notConnected}`}>
-                    {isMethodConnected ? 'Connected' : 'Not Connected'}
-                  </span>
+          {paymentMethods.map((method) => (
+            <div key={method.id}>
+              <div 
+                className={styles.methodCard}
+                onClick={() => toggleInput(method.id)}
+              >
+                <div className={styles.methodInfo}>
+                  <Image
+                    src={method.image}
+                    alt={`${method.name} logo`}
+                    width={40}
+                    height={40}
+                    className={styles.methodLogo}
+                  />
+                  <span className={styles.methodName}>{method.displayText}</span>
                 </div>
-                
-                {openInputId === method.id && !isConnecting && (
-                  <div className={styles.inputContainer}>
-                    <input 
-                      type="text" 
-                      placeholder={method.placeholder}
-                      className={styles.addressInput}
-                      onChange={(e) => handleAddressChange(e.target.value)}
-                      value={paymentAddress}
-                    />
-                  </div>
-                )}
+                <span className={`${styles.connectedStatus} ${method.isConnected ? styles.connected : styles.notConnected}`}>
+                  {method.isConnected ? 'Connected' : 'Not Connected'}
+                </span>
               </div>
-            )
-          })}
+              
+              {openInputId === method.id && (
+                <div className={styles.inputContainer}>
+                  <input 
+                    type="text" 
+                    placeholder={method.placeholder}
+                    className={styles.addressInput}
+                    onChange={(e) => handleAddressChange(e.target.value)}
+                    value={paymentAddress}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         <div className={styles.connectButton}>
           <button 
             onClick={handleConnect}
-            disabled={connectButtonText === 'Connect Payment Address' && (!selectedMethod || !isAddressValid)}
-            className={connectButtonText === 'Disconnect Payment Address' ? styles.disconnectButton : ''}
+            disabled={!selectedMethod || !isAddressValid}
+            className={(!selectedMethod || !isAddressValid) ? styles.disabled : ''}
           >
-            {connectButtonText}
+            Connect Payment Address
           </button>
         </div>
       </div>
