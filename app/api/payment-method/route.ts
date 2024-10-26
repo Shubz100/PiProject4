@@ -6,17 +6,14 @@ export async function POST(req: NextRequest) {
         const { telegramId, paymentMethod } = await req.json()
 
         if (!telegramId) {
-            return NextResponse.json({ error: 'Telegram ID is required' }, { status: 400 })
+            return NextResponse.json({ error: 'Invalid telegramId' }, { status: 400 })
         }
 
         const updatedUser = await prisma.user.update({
-            where: { 
-                telegramId: Number(telegramId)  // Ensure telegramId is a number
-            },
+            where: { telegramId },
             data: {
-                paymentMethod,
-                // Clear payment address when payment method is cleared
-                paymentAddress: paymentMethod ? undefined : null
+                paymentMethod: paymentMethod,
+                paymentAddress: paymentMethod ? undefined : null // Clear address when method is cleared
             }
         })
 
@@ -29,20 +26,19 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
     try {
-        const telegramId = req.nextUrl.searchParams.get('telegramId')
+        const { searchParams } = new URL(req.url)
+        const telegramId = searchParams.get('telegramId')
 
         if (!telegramId) {
-            return NextResponse.json({ error: 'Telegram ID is required' }, { status: 400 })
+            return NextResponse.json({ error: 'Invalid telegramId' }, { status: 400 })
         }
 
         const user = await prisma.user.findUnique({
-            where: { 
-                telegramId: Number(telegramId)  // Ensure telegramId is a number
-            },
-            select: { paymentMethod: true }
+            where: { telegramId: parseInt(telegramId) },
+            select: { paymentMethod: true, paymentAddress: true }
         })
 
-        return NextResponse.json(user || { paymentMethod: null })
+        return NextResponse.json(user)
     } catch (error) {
         console.error('Error fetching payment method:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
