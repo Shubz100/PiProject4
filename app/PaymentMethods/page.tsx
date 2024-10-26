@@ -67,15 +67,23 @@ export default function PaymentMethods() {
         const telegramId = localStorage.getItem('telegramId')
         if (!telegramId) return
 
-        const response = await fetch(`/api/user?telegramId=${telegramId}`)
-        const userData = await response.json()
+        // Use separate API endpoints for payment method and address
+        const [methodResponse, addressResponse] = await Promise.all([
+          fetch(`/api/payment-method?telegramId=${telegramId}`),
+          fetch(`/api/payment-address?telegramId=${telegramId}`)
+        ])
         
-        if (userData.paymentMethod) {
+        const [methodData, addressData] = await Promise.all([
+          methodResponse.json(),
+          addressResponse.json()
+        ])
+        
+        if (methodData.paymentMethod) {
           setIsSaved(true)
           setButtonText('Next Step')
-          setConnectedMethod(userData.paymentMethod)
-          setSelectedMethod(userData.paymentMethod)
-          setPaymentAddress(userData.paymentAddress || '')
+          setConnectedMethod(methodData.paymentMethod)
+          setSelectedMethod(methodData.paymentMethod)
+          setPaymentAddress(addressData.paymentAddress || '')
           setConnectButtonText('Disconnect Payment Address')
         }
       } catch (error) {
@@ -107,18 +115,33 @@ export default function PaymentMethods() {
         return
       }
 
-      const response = await fetch(`/api/user?telegramId=${telegramId}`, {
+      // Update payment method first
+      const methodResponse = await fetch('/api/payment-method', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          paymentMethod: selectedMethod,
-          paymentAddress: paymentAddress
+          telegramId,
+          paymentMethod: selectedMethod
         }),
       })
 
-      if (response.ok) {
+      if (!methodResponse.ok) throw new Error('Failed to update payment method')
+
+      // Then update payment address
+      const addressResponse = await fetch('/api/payment-address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          telegramId,
+          paymentAddress
+        }),
+      })
+
+      if (addressResponse.ok) {
         setIsSaved(true)
         setButtonText('Next Step')
         setConnectedMethod(selectedMethod)
@@ -140,14 +163,15 @@ export default function PaymentMethods() {
         return
       }
 
-      const response = await fetch(`/api/user?telegramId=${telegramId}`, {
+      // Clear payment method (this will also clear the address in the API)
+      const response = await fetch('/api/payment-method', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          paymentMethod: null,
-          paymentAddress: null
+          telegramId,
+          paymentMethod: null
         }),
       })
 
