@@ -1,55 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(req: NextRequest) {
-    try {
-        const url = new URL(req.url)
-        const telegramId = parseInt(url.searchParams.get('telegramId') || '')
-
-        if (!telegramId) {
-            return NextResponse.json({ error: 'Telegram ID is required' }, { status: 400 })
-        }
-
-        const user = await prisma.user.findUnique({
-            where: { telegramId }
-        })
-
-        return NextResponse.json(user || {})
-    } catch (error) {
-        console.error('Error fetching user:', error)
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-    }
-}
-
 export async function POST(req: NextRequest) {
     try {
-        const { paymentMethod, paymentAddress } = await req.json()
-        const url = new URL(req.url)
-        const telegramId = parseInt(url.searchParams.get('telegramId') || '')
-        
-        if (!telegramId) {
-            return NextResponse.json({ error: 'Telegram ID is required' }, { status: 400 })
+        const userData = await req.json()
+
+        if (!userData || !userData.id) {
+            return NextResponse.json({ error: 'Invalid user data' }, { status: 400 })
         }
 
-        const user = await prisma.user.findUnique({
-            where: { telegramId }
+        let user = await prisma.user.findUnique({
+            where: { telegramId: userData.id }
         })
-        
+
         if (!user) {
-            return NextResponse.json({ error: 'No user found' }, { status: 404 })
+            user = await prisma.user.create({
+                data: {
+                    telegramId: userData.id,
+                    username: userData.username || '',
+                    firstName: userData.first_name || '',
+                    lastName: userData.last_name || ''
+                }
+            })
         }
 
-        const updatedUser = await prisma.user.update({
-            where: { telegramId },
-            data: {
-                paymentMethod,
-                paymentAddress
-            }
-        })
-
-        return NextResponse.json(updatedUser)
+        return NextResponse.json(user)
     } catch (error) {
-        console.error('Error updating user:', error)
+        console.error('Error processing user data:', error)
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 }
